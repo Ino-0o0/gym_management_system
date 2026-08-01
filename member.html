@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Member — IronLog</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="shell">
+
+  <aside class="sidebar">
+    <div class="brand">Iron<span>Log</span></div>
+    <div class="role-tag">Member</div>
+    <nav class="nav">
+      <button data-section="sec-membership" class="active">Membership</button>
+      <button data-section="sec-workout">Workout Plan</button>
+      <button data-section="sec-attendance">Attendance</button>
+      <button data-section="sec-payments">Payments</button>
+    </nav>
+    <div class="sidebar-footer">
+      <a class="exit-link" href="index.html">&larr; Switch role</a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <h1>Member Dashboard</h1>
+      <div class="who" id="who"></div>
+    </div>
+    <div id="pulse-holder"></div>
+
+    <!-- MEMBERSHIP -->
+    <section class="section active" id="sec-membership">
+      <div class="stat-grid" id="stat-grid"></div>
+      <div class="card">
+        <h2>My details</h2>
+        <table>
+          <tbody id="tbl-membership"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- WORKOUT -->
+    <section class="section" id="sec-workout">
+      <div class="card">
+        <h2>My workout plan</h2>
+        <table>
+          <thead><tr><th>Title</th><th>Notes</th><th>Assigned by</th><th>Created</th></tr></thead>
+          <tbody id="tbl-workout"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ATTENDANCE -->
+    <section class="section" id="sec-attendance">
+      <div class="card">
+        <h2>My attendance history</h2>
+        <table>
+          <thead><tr><th>Date</th><th>Check-in</th><th>Check-out</th></tr></thead>
+          <tbody id="tbl-attendance"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- PAYMENTS -->
+    <section class="section" id="sec-payments">
+      <div class="card">
+        <h2>My payment history</h2>
+        <table>
+          <thead><tr><th>Date</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead>
+          <tbody id="tbl-payments"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script src="member.js"></script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IronLog — Gym Management System</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="login-wrap">
+  <div>
+    <div class="brand">Iron<span>Log</span></div>
+    <div class="tagline">Gym management, one dashboard per role</div>
+  </div>
+
+  <div class="role-grid">
+    <a class="role-card" id="pick-admin" href="#">
+      <div class="icon">🗂️</div>
+      <div class="name">Admin</div>
+      <div class="desc">Members, trainers, plans, payments, equipment, reports</div>
+    </a>
+    <a class="role-card" id="pick-trainer" href="#">
+      <div class="icon">🏋️</div>
+      <div class="name">Trainer</div>
+      <div class="desc">Assigned members, workout plans, attendance</div>
+    </a>
+    <a class="role-card" id="pick-member" href="#">
+      <div class="icon">👤</div>
+      <div class="name">Member</div>
+      <div class="desc">Membership, workout plan, attendance, payments</div>
+    </a>
+  </div>
+
+  <div class="picker-box" id="admin-picker">
+    <label for="admin-password">Admin password</label>
+    <input type="password" id="admin-password" placeholder="Password" autocomplete="off">
+    <div class="error-text" id="admin-error">Incorrect password.</div>
+    <a class="btn" id="admin-go">Enter dashboard</a>
+  </div>
+
+  <div class="picker-box" id="trainer-picker">
+    <label for="trainer-select">Continue as which trainer?</label>
+    <select id="trainer-select"></select>
+    <label for="trainer-password">Password</label>
+    <input type="password" id="trainer-password" placeholder="Password" autocomplete="off">
+    <div class="error-text" id="trainer-error">Incorrect password.</div>
+    <a class="btn" id="trainer-go">Enter dashboard</a>
+  </div>
+
+  <div class="picker-box" id="member-picker">
+    <label for="member-select">Continue as which member?</label>
+    <select id="member-select"></select>
+    <label for="member-password">Password</label>
+    <input type="password" id="member-password" placeholder="Password" autocomplete="off">
+    <div class="error-text" id="member-error">Incorrect password.</div>
+    <a class="btn" id="member-go">Enter dashboard</a>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script>
+  const adminPicker = document.getElementById('admin-picker');
+  const trainerPicker = document.getElementById('trainer-picker');
+  const memberPicker = document.getElementById('member-picker');
+  const allPickers = [adminPicker, trainerPicker, memberPicker];
+  const closeOthers = (keep) => allPickers.forEach(p => { if (p !== keep) p.classList.remove('active'); });
+
+  // ---- Admin ----
+  document.getElementById('pick-admin').addEventListener('click', (e) => {
+    e.preventDefault();
+    closeOthers(adminPicker);
+    adminPicker.classList.toggle('active');
+  });
+  document.getElementById('admin-go').addEventListener('click', () => {
+    const entered = document.getElementById('admin-password').value;
+    if (entered === DB.admin.password) {
+      window.location.href = 'admin.html';
+    } else {
+      document.getElementById('admin-error').classList.add('show');
+    }
+  });
+
+  // ---- Trainer ----
+  const trainerSelect = document.getElementById('trainer-select');
+  DB.trainers.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = t.name;
+    trainerSelect.appendChild(opt);
+  });
+  document.getElementById('pick-trainer').addEventListener('click', (e) => {
+    e.preventDefault();
+    closeOthers(trainerPicker);
+    trainerPicker.classList.toggle('active');
+  });
+  document.getElementById('trainer-go').addEventListener('click', () => {
+    const trainer = findTrainer(trainerSelect.value);
+    const entered = document.getElementById('trainer-password').value;
+    if (trainer && entered === trainer.password) {
+      window.location.href = `trainer.html?id=${trainerSelect.value}`;
+    } else {
+      document.getElementById('trainer-error').classList.add('show');
+    }
+  });
+
+  // ---- Member ----
+  const memberSelect = document.getElementById('member-select');
+  DB.members.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    opt.textContent = m.name;
+    memberSelect.appendChild(opt);
+  });
+  document.getElementById('pick-member').addEventListener('click', (e) => {
+    e.preventDefault();
+    closeOthers(memberPicker);
+    memberPicker.classList.toggle('active');
+  });
+  document.getElementById('member-go').addEventListener('click', () => {
+    const member = findMember(memberSelect.value);
+    const entered = document.getElementById('member-password').value;
+    if (member && entered === member.password) {
+      window.location.href = `member.html?id=${memberSelect.value}`;
+    } else {
+      document.getElementById('member-error').classList.add('show');
+    }
+  });
+</script>
+
+</body>
+</html>

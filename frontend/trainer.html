@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trainer — IronLog</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="shell">
+
+  <aside class="sidebar">
+    <div class="brand">Iron<span>Log</span></div>
+    <div class="role-tag" id="role-tag">Trainer</div>
+    <nav class="nav">
+      <button data-section="sec-members" class="active">My Members</button>
+      <button data-section="sec-workouts">Workout Plans</button>
+      <button data-section="sec-attendance">Attendance</button>
+    </nav>
+    <div class="sidebar-footer">
+      <a class="exit-link" href="index.html">&larr; Switch role</a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <h1>Trainer Dashboard</h1>
+      <div class="who" id="who"></div>
+    </div>
+    <div id="pulse-holder"></div>
+
+    <!-- MY MEMBERS -->
+    <section class="section active" id="sec-members">
+      <div class="card">
+        <h2>Members assigned to me</h2>
+        <table>
+          <thead><tr><th>Name</th><th>Plan</th><th>Status</th><th>Joined</th></tr></thead>
+          <tbody id="tbl-my-members"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- WORKOUT PLANS -->
+    <section class="section" id="sec-workouts">
+      <div class="card">
+        <h3>Create / update a workout plan</h3>
+        <form id="form-workout">
+          <div class="form-grid">
+            <div><label>Member</label><select id="w-member"></select></div>
+            <div><label>Plan title</label><input required id="w-title" placeholder="e.g. Strength Phase 3"></div>
+          </div>
+          <div style="margin-bottom:14px">
+            <label>Notes</label>
+            <textarea id="w-notes" placeholder="e.g. Squat 4x6, bench 4x6, deadlift 3x5..."></textarea>
+          </div>
+          <button class="btn" type="submit">Save plan</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Workout plans for my members</h2>
+        <table>
+          <thead><tr><th>Member</th><th>Title</th><th>Notes</th><th>Created</th></tr></thead>
+          <tbody id="tbl-workouts"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ATTENDANCE -->
+    <section class="section" id="sec-attendance">
+      <div class="card">
+        <h3>Mark attendance</h3>
+        <form id="form-attendance">
+          <div class="form-grid">
+            <div><label>Member</label><select id="a-member"></select></div>
+            <div><label>Date</label><input required type="date" id="a-date"></div>
+            <div><label>Check-in</label><input required type="time" id="a-checkin"></div>
+            <div><label>Check-out</label><input type="time" id="a-checkout"></div>
+          </div>
+          <button class="btn" type="submit">Log attendance</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Recent attendance — my members</h2>
+        <table>
+          <thead><tr><th>Member</th><th>Date</th><th>Check-in</th><th>Check-out</th></tr></thead>
+          <tbody id="tbl-attendance"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script src="trainer.js"></script>
+</body>
+</html>

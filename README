@@ -1,0 +1,2 @@
+pip install fastapi uvicorn psycopg2-binary
+python -m pip install fastapi uvicorn psycopg2-binary

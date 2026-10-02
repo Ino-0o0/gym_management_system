@@ -61,8 +61,9 @@ function populateSelectsRefresh() {
 /* ---------- OVERVIEW ---------- */
 function renderOverview() {
   const activeMembers = DB.members.filter(m => m.status === 'Active').length;
+  const ym = new Date().toISOString().slice(0, 7);   // e.g. "2026-10"
   const monthlyRevenue = DB.payments
-    .filter(p => p.status === 'Paid' && p.date.startsWith('2026-07'))
+    .filter(p => p.status === 'Paid' && p.date.startsWith(ym))
     .reduce((sum, p) => sum + p.amount, 0);
   const maintenanceCount = DB.equipment.filter(e => e.status === 'Maintenance').length;
 
@@ -103,8 +104,8 @@ function onAddMember(e) {
     email: document.getElementById('m-email').value.trim(),
     phone: document.getElementById('m-phone').value.trim(),
     joinDate: new Date().toISOString().slice(0, 10),
-    planId: Number(document.getElementById('m-plan').value),
-    trainerId: Number(document.getElementById('m-trainer').value),
+    planId: document.getElementById('m-plan').value,
+    trainerId: document.getElementById('m-trainer').value,
     status: 'Active',
   });
   e.target.reset();
@@ -165,7 +166,7 @@ function onAddPayment(e) {
   e.preventDefault();
   DB.payments.push({
     id: nextId(DB.payments),
-    memberId: Number(document.getElementById('pay-member').value),
+    memberId: document.getElementById('pay-member').value,
     amount: Number(document.getElementById('pay-amount').value),
     method: document.getElementById('pay-method').value,
     date: document.getElementById('pay-date').value,
@@ -181,8 +182,8 @@ function renderEquipment() {
   renderTable(document.getElementById('tbl-equipment'), DB.equipment.map(eq => [
     eq.name, eq.category, eq.quantity, statusBadge(eq.status), eq.lastService,
     eq.status === 'Working'
-      ? `<button class="btn small danger" onclick="toggleEquipment(${eq.id})">Flag for service</button>`
-      : `<button class="btn small secondary" onclick="toggleEquipment(${eq.id})">Mark fixed</button>`,
+      ? `<button class="btn small danger" onclick="toggleEquipment('${eq.id}')">Flag for service</button>`
+      : `<button class="btn small secondary" onclick="toggleEquipment('${eq.id}')">Mark fixed</button>`,
   ]), 6);
 }
 

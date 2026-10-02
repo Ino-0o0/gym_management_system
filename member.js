@@ -1,11 +1,15 @@
 /* ============================================================
    member.js — Member dashboard behaviour (read-only views)
    The member is identified by ?id= in the URL (set from index.html).
+   IDs are strings like 'mbr_01'.
    ============================================================ */
 
-const MEMBER_ID = Number(new URLSearchParams(window.location.search).get('id')) || DB.members[0].id;
+let MEMBER_ID = new URLSearchParams(window.location.search).get('id');
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadDB();
+  if (!MEMBER_ID) MEMBER_ID = DB.members[0].id;
+
   const member = findMember(MEMBER_ID);
   document.getElementById('who').textContent = `MEMBER: ${member ? member.name.toUpperCase() : 'UNKNOWN'}`;
 
@@ -55,7 +59,7 @@ function renderAttendance() {
     .filter(a => a.memberId === MEMBER_ID)
     .sort((a, b) => b.date.localeCompare(a.date));
   renderTable(document.getElementById('tbl-attendance'), rows.map(a => [
-    a.date, a.checkIn, a.checkOut || '—',
+    a.date, a.checkIn || '—', a.checkOut || '—',
   ]), 3, 'No attendance recorded yet');
 }
 

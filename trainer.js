@@ -1,73 +1,101 @@
 /* ============================================================
-   member.js — Member dashboard behaviour (read-only views)
-   The member is identified by ?id= in the URL (set from index.html).
-   IDs are strings like 'mbr_01'.
+   trainer.js — Trainer dashboard behaviour (API + PostgreSQL)
+   The trainer is identified by ?id= in the URL (set from index.html).
+   IDs are strings like 'trn_01'.
    ============================================================ */
 
-let MEMBER_ID = new URLSearchParams(window.location.search).get('id');
+let TRAINER_ID = new URLSearchParams(window.location.search).get('id');
 
 document.addEventListener('DOMContentLoaded', async () => {
   await loadDB();
-  if (!MEMBER_ID) MEMBER_ID = DB.members[0].id;
+  if (!TRAINER_ID) TRAINER_ID = DB.trainers[0].id;
 
-  const member = findMember(MEMBER_ID);
-  document.getElementById('who').textContent = `MEMBER: ${member ? member.name.toUpperCase() : 'UNKNOWN'}`;
+  const trainer = findTrainer(TRAINER_ID);
+  document.getElementById('who').textContent = `TRAINER: ${trainer ? trainer.name.toUpperCase() : 'UNKNOWN'}`;
 
   initNav();
   injectPulse(document.getElementById('pulse-holder'));
 
-  renderMembership();
-  renderWorkout();
+  populateSelects();
+  renderMyMembers();
+  renderWorkouts();
   renderAttendance();
-  renderPayments();
+
+  document.getElementById('form-workout').addEventListener('submit', onAddWorkout);
+  document.getElementById('form-attendance').addEventListener('submit', onAddAttendance);
 });
 
-function renderMembership() {
-  const m = findMember(MEMBER_ID);
-  if (!m) return;
-  const plan = findPlan(m.planId);
-  const trainer = findTrainer(m.trainerId);
-
-  document.getElementById('stat-grid').innerHTML = `
-    <div class="stat-card"><div class="label">Plan</div><div class="value">${plan?.name || '—'}</div></div>
-    <div class="stat-card"><div class="label">Status</div><div class="value accent">${m.status}</div></div>
-    <div class="stat-card"><div class="label">Trainer</div><div class="value">${trainer?.name || '—'}</div></div>
-  `;
-
-  document.getElementById('tbl-membership').innerHTML = `
-    <tr><td>Name</td><td>${m.name}</td></tr>
-    <tr><td>Email</td><td>${m.email}</td></tr>
-    <tr><td>Phone</td><td>${m.phone}</td></tr>
-    <tr><td>Joined</td><td>${m.joinDate}</td></tr>
-    <tr><td>Plan duration</td><td>${plan ? plan.durationMonths + ' month(s)' : '—'}</td></tr>
-    <tr><td>Plan price</td><td>${plan ? fmtMoney(plan.price) : '—'}</td></tr>
-    <tr><td>Assigned trainer</td><td>${trainer ? `${trainer.name} (${trainer.specialization})` : '—'}</td></tr>
-  `;
+function myMembers() {
+  return DB.members.filter(m => m.trainerId === TRAINER_ID);
 }
 
-function renderWorkout() {
+function populateSelects() {
+  const wSel = document.getElementById('w-member');
+  const aSel = document.getElementById('a-member');
+  myMembers().forEach(m => {
+    wSel.add(new Option(m.name, m.id));
+    aSel.add(new Option(m.name, m.id));
+  });
+  document.getElementById('a-date').valueAsDate = new Date();
+}
+
+function renderMyMembers() {
+  renderTable(document.getElementById('tbl-my-members'), myMembers().map(m => [
+    m.name, findPlan(m.planId)?.name || '—', statusBadge(m.status), m.joinDate,
+  ]), 4, 'No members assigned yet');
+}
+
+function renderWorkouts() {
+  const ids = myMembers().map(m => m.id);
   const rows = DB.workouts
-    .filter(w => w.memberId === MEMBER_ID)
+    .filter(w => ids.includes(w.memberId))
     .sort((a, b) => b.createdDate.localeCompare(a.createdDate));
-  renderTable(document.getElementById('tbl-workout'), rows.map(w => [
-    w.title, w.notes, findTrainer(w.trainerId)?.name || '—', w.createdDate,
-  ]), 4, 'No workout plan assigned yet');
+  renderTable(document.getElementById('tbl-workouts'), rows.map(w => [
+    findMember(w.memberId)?.name || '—', w.title, w.notes, w.createdDate,
+  ]), 4, 'No workout plans created yet');
+}
+
+async function onAddWorkout(e) {
+  e.preventDefault();
+  try {
+    await api('/workouts', {
+      memberId: document.getElementById('w-member').value,
+      trainerId: TRAINER_ID,
+      title: document.getElementById('w-title').value.trim(),
+      notes: document.getElementById('w-notes').value.trim(),
+    });
+    e.target.reset();
+    await loadDB();
+    renderWorkouts();
+  } catch (err) {
+    alert(err.message);
+  }
 }
 
 function renderAttendance() {
+  const ids = myMembers().map(m => m.id);
   const rows = DB.attendance
-    .filter(a => a.memberId === MEMBER_ID)
+    .filter(a => ids.includes(a.memberId))
     .sort((a, b) => b.date.localeCompare(a.date));
   renderTable(document.getElementById('tbl-attendance'), rows.map(a => [
-    a.date, a.checkIn || '—', a.checkOut || '—',
-  ]), 3, 'No attendance recorded yet');
+    findMember(a.memberId)?.name || '—', a.date, a.checkIn || '—', a.checkOut || '—',
+  ]), 4, 'No attendance logged yet');
 }
 
-function renderPayments() {
-  const rows = DB.payments
-    .filter(p => p.memberId === MEMBER_ID)
-    .sort((a, b) => b.date.localeCompare(a.date));
-  renderTable(document.getElementById('tbl-payments'), rows.map(p => [
-    p.date, fmtMoney(p.amount), p.method, statusBadge(p.status),
-  ]), 4, 'No payments recorded yet');
+async function onAddAttendance(e) {
+  e.preventDefault();
+  try {
+    await api('/attendance', {
+      memberId: document.getElementById('a-member').value,
+      date: document.getElementById('a-date').value,
+      checkIn: document.getElementById('a-checkin').value,
+      checkOut: document.getElementById('a-checkout').value,
+    });
+    e.target.reset();
+    document.getElementById('a-date').valueAsDate = new Date();
+    await loadDB();
+    renderAttendance();
+  } catch (err) {
+    alert(err.message);
+  }
 }

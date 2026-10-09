@@ -14,6 +14,7 @@
     <div class="role-tag">Admin</div>
     <nav class="nav">
       <button data-section="sec-overview" class="active">Overview</button>
+            <button data-section="sec-requests">Requests <span id="req-count" class="badge warn" style="display:none"></span></button>
       <button data-section="sec-members">Members</button>
       <button data-section="sec-trainers">Trainers</button>
       <button data-section="sec-plans">Membership Plans</button>
@@ -44,7 +45,16 @@
         </table>
       </div>
     </section>
-
+    <!-- REGISTRATION REQUESTS -->
+    <section class="section" id="sec-requests">
+      <div class="card">
+        <h2>Pending registrations</h2>
+        <table>
+          <thead><tr><th>Name</th><th>Type</th><th>Email</th><th>Phone</th><th>Details</th><th>Date</th><th></th></tr></thead>
+          <tbody id="tbl-requests"></tbody>
+        </table>
+      </div>
+    </section>
     <!-- MEMBERS -->
     <section class="section" id="sec-members">
       <div class="card">

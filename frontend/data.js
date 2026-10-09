@@ -13,6 +13,7 @@ const DB = {
   attendance: [],
   workouts: [],
   equipment: [],
+  requests: [],
 };
 
 /* Fetch everything from the server and copy it into DB */

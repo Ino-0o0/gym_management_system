@@ -65,12 +65,13 @@ a { color: inherit; }
 .brand {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 20px;
+  font-size: 22px;
+  line-height: 1.1;
   letter-spacing: -0.02em;
-  padding: 0 8px 4px;
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
+  padding: 0 12px;
+  margin: 0 0 4px;
+  display: block;
+  white-space: nowrap;
 }
 .brand span { color: var(--accent); }
 
@@ -78,7 +79,8 @@ a { color: inherit; }
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-faint);
-  padding: 0 8px 20px;
+  padding: 0 12px;
+  margin: 0 0 22px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -380,6 +382,12 @@ textarea { resize: vertical; min-height: 60px; }
   display: none;
 }
 .picker-box .error-text.show { display: block; }
+.picker-box .ok-text { font-size: 12px; color: var(--ok); display: none; }
+.picker-box .ok-text.show { display: block; }
+
+.register-line { font-size: 13.5px; color: var(--text-faint); margin-top: -8px; }
+.register-line a { color: var(--accent); font-weight: 600; text-decoration: none; }
+.register-line a:hover { text-decoration: underline; }
 
 @media (max-width: 800px) {
   .shell { grid-template-columns: 1fr; }

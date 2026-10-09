@@ -10,7 +10,7 @@
 
 <div class="login-wrap">
   <div>
-    <div class="brand">Iron<span>Log</span></div>
+    <div class="brand login-brand">Iron<span>Log</span></div><br><br>
     <div class="tagline">Gym management, one dashboard per role</div>
   </div>
 
@@ -30,6 +30,42 @@
       <div class="name">Member</div>
       <div class="desc">Membership, workout plan, attendance, payments</div>
     </a>
+  </div>
+
+  <div class="register-line">New here? <a href="#" id="pick-register">Register</a></div>
+
+  <div class="picker-box" id="register-picker">
+    <label for="reg-role">Register as</label>
+    <select id="reg-role">
+      <option value="member">Member</option>
+      <option value="trainer">Trainer</option>
+    </select>
+    <label for="reg-name">Full name</label>
+    <input id="reg-name" placeholder="Full name" autocomplete="name">
+    <label for="reg-email">Email</label>
+    <input id="reg-email" type="email" placeholder="Email address" autocomplete="email">
+    <label for="reg-phone">Phone</label>
+    <input id="reg-phone" placeholder="Phone number" autocomplete="tel">
+    <div id="reg-spec-wrap" style="display:none">
+      <label for="reg-spec">Specialization</label>
+      <input id="reg-spec" placeholder="Specialization">
+    </div>
+    <label for="reg-password">Password</label>
+    <input type="password" id="reg-password" placeholder="At least 6 characters" autocomplete="new-password">
+    <label for="reg-confirm">Confirm password</label>
+    <input type="password" id="reg-confirm" placeholder="Repeat password" autocomplete="new-password">
+    <div class="error-text" id="reg-error"></div>
+    <div class="ok-text" id="reg-ok"></div>
+    <a class="btn" id="reg-go">Submit registration</a>
+  </div>
+
+  <div class="picker-box" id="setup-picker">
+    <label for="setup-password">First-time setup: create the admin password</label>
+    <input type="password" id="setup-password" placeholder="At least 6 characters" autocomplete="new-password">
+    <label for="setup-confirm">Confirm password</label>
+    <input type="password" id="setup-confirm" placeholder="Repeat password" autocomplete="new-password">
+    <div class="error-text" id="setup-error"></div>
+    <a class="btn" id="setup-go">Create admin account</a>
   </div>
 
   <div class="picker-box" id="admin-picker">
@@ -60,71 +96,93 @@
 
 <script src="data.js"></script>
 <script>
-  const adminPicker = document.getElementById('admin-picker');
-  const trainerPicker = document.getElementById('trainer-picker');
-  const memberPicker = document.getElementById('member-picker');
-  const allPickers = [adminPicker, trainerPicker, memberPicker];
-  const closeOthers = (keep) => allPickers.forEach(p => { if (p !== keep) p.classList.remove('active'); });
+  const $ = (id) => document.getElementById(id);
+  const pickers = { register: $('register-picker'), setup: $('setup-picker'), admin: $('admin-picker'), trainer: $('trainer-picker'), member: $('member-picker') };
+  const toggle = (key) => {
+    const was = pickers[key].classList.contains('active');
+    Object.values(pickers).forEach(p => p.classList.remove('active'));
+    if (!was) pickers[key].classList.add('active');
+  };
+  const showErr = (id, msg) => { const el = $(id); if (msg) el.textContent = msg; el.classList.add('show'); };
+  const hideMsg = (...ids) => ids.forEach(i => $(i).classList.remove('show'));
 
-  // ---- Admin ----
-  document.getElementById('pick-admin').addEventListener('click', (e) => {
-    e.preventDefault();
-    closeOthers(adminPicker);
-    adminPicker.classList.toggle('active');
-  });
-  document.getElementById('admin-go').addEventListener('click', () => {
-    const entered = document.getElementById('admin-password').value;
-    if (entered === DB.admin.password) {
-      window.location.href = 'admin.html';
-    } else {
-      document.getElementById('admin-error').classList.add('show');
+  let needsSetup = false;
+
+  async function init() {
+    try {
+      needsSetup = (await (await fetch('/api/setup-status')).json()).needsSetup;
+      const opts = await (await fetch('/api/login-options')).json();
+      opts.trainers.forEach(t => $('trainer-select').add(new Option(t.name, t.id)));
+      opts.members.forEach(m => $('member-select').add(new Option(m.name, m.id)));
+    } catch (_) {
+      showErr('admin-error', 'Cannot reach the server.');
     }
+    if (needsSetup) toggle('setup');
+  }
+  init();
+
+  // ---- Admin (first run shows the setup form instead) ----
+  $('pick-admin').addEventListener('click', (e) => { e.preventDefault(); toggle(needsSetup ? 'setup' : 'admin'); });
+
+  $('setup-go').addEventListener('click', async () => {
+    const pw = $('setup-password').value;
+    if (pw !== $('setup-confirm').value) return showErr('setup-error', 'Passwords do not match.');
+    try {
+      await api('/setup', { password: pw });
+      window.location.href = 'admin.html';
+    } catch (err) { showErr('setup-error', err.message); }
+  });
+
+  $('admin-go').addEventListener('click', async () => {
+    try {
+      await api('/login', { role: 'admin', password: $('admin-password').value });
+      window.location.href = 'admin.html';
+    } catch (_) { showErr('admin-error'); }
+  });
+
+  // ---- Register (goes to the admin for approval) ----
+  $('pick-register').addEventListener('click', (e) => { e.preventDefault(); toggle('register'); });
+  $('reg-role').addEventListener('change', () => {
+    $('reg-spec-wrap').style.display = $('reg-role').value === 'trainer' ? 'block' : 'none';
+  });
+  $('reg-go').addEventListener('click', async () => {
+    hideMsg('reg-error', 'reg-ok');
+    if ($('reg-password').value !== $('reg-confirm').value) return showErr('reg-error', 'Passwords do not match.');
+    try {
+      await api('/register', {
+        role: $('reg-role').value,
+        name: $('reg-name').value,
+        email: $('reg-email').value,
+        phone: $('reg-phone').value,
+        specialization: $('reg-spec').value,
+        password: $('reg-password').value,
+      });
+      ['reg-name', 'reg-email', 'reg-phone', 'reg-spec', 'reg-password', 'reg-confirm'].forEach(i => $(i).value = '');
+      $('reg-ok').textContent = 'Registration submitted. You can log in once the admin approves it.';
+      $('reg-ok').classList.add('show');
+    } catch (err) { showErr('reg-error', err.message); }
   });
 
   // ---- Trainer ----
-  const trainerSelect = document.getElementById('trainer-select');
-  DB.trainers.forEach(t => {
-    const opt = document.createElement('option');
-    opt.value = t.id;
-    opt.textContent = t.name;
-    trainerSelect.appendChild(opt);
-  });
-  document.getElementById('pick-trainer').addEventListener('click', (e) => {
-    e.preventDefault();
-    closeOthers(trainerPicker);
-    trainerPicker.classList.toggle('active');
-  });
-  document.getElementById('trainer-go').addEventListener('click', () => {
-    const trainer = findTrainer(trainerSelect.value);
-    const entered = document.getElementById('trainer-password').value;
-    if (trainer && entered === trainer.password) {
-      window.location.href = `trainer.html?id=${trainerSelect.value}`;
-    } else {
-      document.getElementById('trainer-error').classList.add('show');
-    }
+  $('pick-trainer').addEventListener('click', (e) => { e.preventDefault(); toggle('trainer'); });
+  $('trainer-go').addEventListener('click', async () => {
+    const id = $('trainer-select').value;
+    if (!id) return showErr('trainer-error', 'No trainers yet. Ask the admin to add one.');
+    try {
+      await api('/login', { role: 'trainer', id, password: $('trainer-password').value });
+      window.location.href = `trainer.html?id=${id}`;
+    } catch (_) { showErr('trainer-error', 'Incorrect password.'); }
   });
 
   // ---- Member ----
-  const memberSelect = document.getElementById('member-select');
-  DB.members.forEach(m => {
-    const opt = document.createElement('option');
-    opt.value = m.id;
-    opt.textContent = m.name;
-    memberSelect.appendChild(opt);
-  });
-  document.getElementById('pick-member').addEventListener('click', (e) => {
-    e.preventDefault();
-    closeOthers(memberPicker);
-    memberPicker.classList.toggle('active');
-  });
-  document.getElementById('member-go').addEventListener('click', () => {
-    const member = findMember(memberSelect.value);
-    const entered = document.getElementById('member-password').value;
-    if (member && entered === member.password) {
-      window.location.href = `member.html?id=${memberSelect.value}`;
-    } else {
-      document.getElementById('member-error').classList.add('show');
-    }
+  $('pick-member').addEventListener('click', (e) => { e.preventDefault(); toggle('member'); });
+  $('member-go').addEventListener('click', async () => {
+    const id = $('member-select').value;
+    if (!id) return showErr('member-error', 'No members yet. Ask the admin to add one.');
+    try {
+      await api('/login', { role: 'member', id, password: $('member-password').value });
+      window.location.href = `member.html?id=${id}`;
+    } catch (_) { showErr('member-error', 'Incorrect password.'); }
   });
 </script>
 

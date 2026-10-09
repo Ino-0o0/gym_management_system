@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   populateSelects();
   renderOverview();
+  renderRequests();
   renderMembers();
   renderTrainers();
   renderPlans();
@@ -39,6 +40,7 @@ function populateSelects() {
 function refreshAll() {
   populateSelectsRefresh();
   renderOverview();
+  renderRequests();
   renderMembers();
   renderTrainers();
   renderPlans();
@@ -56,6 +58,40 @@ function populateSelectsRefresh() {
   const paySel = document.getElementById('pay-member');
   paySel.innerHTML = '';
   DB.members.forEach(m => paySel.add(new Option(m.name, m.id)));
+}
+/* ---------- REGISTRATION REQUESTS ---------- */
+function renderRequests() {
+  const badge = document.getElementById('req-count');
+  badge.textContent = DB.requests.length;
+  badge.style.display = DB.requests.length ? 'inline-block' : 'none';
+
+  const planOpts = DB.plans.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  const trainerOpts = DB.trainers.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+
+  renderTable(document.getElementById('tbl-requests'), DB.requests.map(r => [
+    r.name, r.role, r.email, r.phone || '—',
+    r.role === 'Trainer'
+      ? (r.specialization || '—')
+      : `<select id="rq-plan-${r.id}"><option value="">Plan…</option>${planOpts}</select>
+         <select id="rq-trainer-${r.id}" style="margin-top:6px"><option value="">Trainer…</option>${trainerOpts}</select>`,
+    r.date,
+    `<button class="btn small" onclick="approveRequest(${r.id}, '${r.role}')">Approve</button>
+     <button class="btn small danger" onclick="rejectRequest(${r.id})">Reject</button>`,
+  ]), 7, 'No pending registrations');
+}
+
+function approveRequest(id, role) {
+  const body = {};
+  if (role === 'Member') {
+    body.planId = document.getElementById(`rq-plan-${id}`).value;
+    body.trainerId = document.getElementById(`rq-trainer-${id}`).value;
+    if (!body.planId || !body.trainerId) { alert('Pick a plan and a trainer first.'); return; }
+  }
+  save(`/requests/${id}/approve`, body);
+}
+
+function rejectRequest(id) {
+  if (confirm('Reject this registration?')) save(`/requests/${id}/reject`);
 }
 
 /* ---------- OVERVIEW ---------- */

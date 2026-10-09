@@ -2,7 +2,8 @@
    admin.js — Admin dashboard behaviour
    ============================================================ */
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadDB();
   initNav();
   injectPulse(document.getElementById('pulse-holder'));
 
@@ -23,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('form-equipment').addEventListener('submit', onAddEquipment);
 });
 
-/* ---------- populate <select> dropdowns from mock DB ---------- */
+/* ---------- populate <select> dropdowns ---------- */
 function populateSelects() {
   const planSel = document.getElementById('m-plan');
   DB.plans.forEach(p => planSel.add(new Option(`${p.name} (${fmtMoney(p.price)})`, p.id)));
@@ -37,7 +38,8 @@ function populateSelects() {
   document.getElementById('pay-date').valueAsDate = new Date();
 }
 
-function refreshAll() {
+async function refreshAll() {
+  await loadDB();
   populateSelectsRefresh();
   renderOverview();
   renderRequests();
@@ -49,7 +51,6 @@ function refreshAll() {
   renderReports();
 }
 
-/* re-fill selects that depend on data which may have grown (members/trainers) */
 function populateSelectsRefresh() {
   const trainerSel = document.getElementById('m-trainer');
   trainerSel.innerHTML = '';
@@ -59,6 +60,7 @@ function populateSelectsRefresh() {
   paySel.innerHTML = '';
   DB.members.forEach(m => paySel.add(new Option(m.name, m.id)));
 }
+
 /* ---------- REGISTRATION REQUESTS ---------- */
 function renderRequests() {
   const badge = document.getElementById('req-count');
@@ -80,24 +82,39 @@ function renderRequests() {
   ]), 7, 'No pending registrations');
 }
 
-function approveRequest(id, role) {
+async function approveRequest(id, role) {
   const body = {};
   if (role === 'Member') {
-    body.planId = document.getElementById(`rq-plan-${id}`).value;
-    body.trainerId = document.getElementById(`rq-trainer-${id}`).value;
+    const planEl = document.getElementById(`rq-plan-${id}`);
+    const trainerEl = document.getElementById(`rq-trainer-${id}`);
+    
+    // ADD THESE TWO LINES:
+    console.log('planEl:', planEl, 'value:', planEl?.value);
+    console.log('trainerEl:', trainerEl, 'value:', trainerEl?.value);
+
+    body.planId = planEl?.value;
+    body.trainerId = trainerEl?.value;
     if (!body.planId || !body.trainerId) { alert('Pick a plan and a trainer first.'); return; }
   }
-  save(`/requests/${id}/approve`, body);
+  try {
+    await api(`/requests/${id}/approve`, body);
+    await refreshAll();
+  } catch (err) { alert(err.message); }
 }
 
-function rejectRequest(id) {
-  if (confirm('Reject this registration?')) save(`/requests/${id}/reject`);
+async function rejectRequest(id) {
+  if (confirm('Reject this registration?')) {
+    try {
+      await api(`/requests/${id}/reject`, {});
+      await refreshAll();
+    } catch (err) { alert(err.message); }
+  }
 }
 
 /* ---------- OVERVIEW ---------- */
 function renderOverview() {
   const activeMembers = DB.members.filter(m => m.status === 'Active').length;
-  const ym = new Date().toISOString().slice(0, 7);   // e.g. "2026-10"
+  const ym = new Date().toISOString().slice(0, 7);
   const monthlyRevenue = DB.payments
     .filter(p => p.status === 'Paid' && p.date.startsWith(ym))
     .reduce((sum, p) => sum + p.amount, 0);
@@ -132,20 +149,19 @@ function renderMembers() {
   ]), 6);
 }
 
-function onAddMember(e) {
+async function onAddMember(e) {
   e.preventDefault();
-  DB.members.push({
-    id: nextId(DB.members),
-    name: document.getElementById('m-name').value.trim(),
-    email: document.getElementById('m-email').value.trim(),
-    phone: document.getElementById('m-phone').value.trim(),
-    joinDate: new Date().toISOString().slice(0, 10),
-    planId: document.getElementById('m-plan').value,
-    trainerId: document.getElementById('m-trainer').value,
-    status: 'Active',
-  });
-  e.target.reset();
-  refreshAll();
+  try {
+    await api('/members', {
+      name: document.getElementById('m-name').value.trim(),
+      email: document.getElementById('m-email').value.trim(),
+      phone: document.getElementById('m-phone').value.trim(),
+      planId: document.getElementById('m-plan').value,
+      trainerId: document.getElementById('m-trainer').value,
+    });
+    e.target.reset();
+    await refreshAll();
+  } catch (err) { alert(err.message); }
 }
 
 /* ---------- TRAINERS ---------- */
@@ -156,17 +172,18 @@ function renderTrainers() {
   ]), 5);
 }
 
-function onAddTrainer(e) {
+async function onAddTrainer(e) {
   e.preventDefault();
-  DB.trainers.push({
-    id: nextId(DB.trainers),
-    name: document.getElementById('t-name').value.trim(),
-    specialization: document.getElementById('t-spec').value.trim(),
-    phone: document.getElementById('t-phone').value.trim(),
-    email: document.getElementById('t-email').value.trim(),
-  });
-  e.target.reset();
-  refreshAll();
+  try {
+    await api('/trainers', {
+      name: document.getElementById('t-name').value.trim(),
+      specialization: document.getElementById('t-spec').value.trim(),
+      phone: document.getElementById('t-phone').value.trim(),
+      email: document.getElementById('t-email').value.trim(),
+    });
+    e.target.reset();
+    await refreshAll();
+  } catch (err) { alert(err.message); }
 }
 
 /* ---------- PLANS ---------- */
@@ -177,16 +194,17 @@ function renderPlans() {
   ]), 4);
 }
 
-function onAddPlan(e) {
+async function onAddPlan(e) {
   e.preventDefault();
-  DB.plans.push({
-    id: nextId(DB.plans),
-    name: document.getElementById('p-name').value.trim(),
-    durationMonths: Number(document.getElementById('p-duration').value),
-    price: Number(document.getElementById('p-price').value),
-  });
-  e.target.reset();
-  refreshAll();
+  try {
+    await api('/plans', {
+      name: document.getElementById('p-name').value.trim(),
+      durationMonths: Number(document.getElementById('p-duration').value),
+      price: Number(document.getElementById('p-price').value),
+    });
+    e.target.reset();
+    await refreshAll();
+  } catch (err) { alert(err.message); }
 }
 
 /* ---------- PAYMENTS ---------- */
@@ -198,19 +216,19 @@ function renderPayments() {
   ]), 5);
 }
 
-function onAddPayment(e) {
+async function onAddPayment(e) {
   e.preventDefault();
-  DB.payments.push({
-    id: nextId(DB.payments),
-    memberId: document.getElementById('pay-member').value,
-    amount: Number(document.getElementById('pay-amount').value),
-    method: document.getElementById('pay-method').value,
-    date: document.getElementById('pay-date').value,
-    status: 'Paid',
-  });
-  e.target.reset();
-  document.getElementById('pay-date').valueAsDate = new Date();
-  refreshAll();
+  try {
+    await api('/payments', {
+      memberId: document.getElementById('pay-member').value,
+      amount: Number(document.getElementById('pay-amount').value),
+      method: document.getElementById('pay-method').value,
+      date: document.getElementById('pay-date').value,
+    });
+    e.target.reset();
+    document.getElementById('pay-date').valueAsDate = new Date();
+    await refreshAll();
+  } catch (err) { alert(err.message); }
 }
 
 /* ---------- EQUIPMENT ---------- */
@@ -223,30 +241,24 @@ function renderEquipment() {
   ]), 6);
 }
 
-function toggleEquipment(id) {
-  const eq = DB.equipment.find(e => e.id === id);
-  if (!eq) return;
-  if (eq.status === 'Working') {
-    eq.status = 'Maintenance';
-  } else {
-    eq.status = 'Working';
-    eq.lastService = new Date().toISOString().slice(0, 10);
-  }
-  refreshAll();
+async function toggleEquipment(id) {
+  try {
+    await api(`/equipment/${id}/toggle`, {});
+    await refreshAll();
+  } catch (err) { alert(err.message); }
 }
 
-function onAddEquipment(e) {
+async function onAddEquipment(e) {
   e.preventDefault();
-  DB.equipment.push({
-    id: nextId(DB.equipment),
-    name: document.getElementById('eq-name').value.trim(),
-    category: document.getElementById('eq-category').value,
-    quantity: Number(document.getElementById('eq-qty').value),
-    status: 'Working',
-    lastService: new Date().toISOString().slice(0, 10),
-  });
-  e.target.reset();
-  refreshAll();
+  try {
+    await api('/equipment', {
+      name: document.getElementById('eq-name').value.trim(),
+      category: document.getElementById('eq-category').value,
+      quantity: Number(document.getElementById('eq-qty').value),
+    });
+    e.target.reset();
+    await refreshAll();
+  } catch (err) { alert(err.message); }
 }
 
 /* ---------- REPORTS ---------- */

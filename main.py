@@ -44,6 +44,10 @@ def all_data():
                                  trainer_id AS "trainerId", goal AS title, notes,
                                  start_date AS "createdDate"
                                  FROM Workout_Plans ORDER BY workout_plan_id'''),
+        "requests": fetch_all('''SELECT request_id AS id, role,
+                                 first_name || ' ' || last_name AS name, email, phone, specialization,
+                                 to_char(created_at, 'YYYY-MM-DD') AS "date"
+                                 FROM Registration_Requests WHERE status='Pending' ORDER BY request_id'''),       
         "equipment": fetch_all('''SELECT equipment_id AS id, equipment_name AS name, category, quantity,
                                   CASE WHEN condition_status = 'Under Maintenance' THEN 'Maintenance'
                                        ELSE condition_status END AS status,
@@ -76,6 +80,78 @@ def login(r: LoginIn):
 def split_name(full: str):
     parts = full.strip().split(" ", 1)
     return parts[0], (parts[1] if len(parts) > 1 else "")
+# ---------- registration requests (admin approves) ----------
+class RegisterIn(BaseModel):
+    role: str
+    name: str
+    email: str
+    phone: str
+    password: str
+    specialization: str = ""
+
+@app.post("/api/register")
+def register(r: RegisterIn):
+    role = ROLES.get(r.role)
+    if role not in ("Trainer", "Member"):
+        raise HTTPException(400, "Choose Trainer or Member")
+    if not r.name.strip() or not r.email.strip() or not r.phone.strip():
+        raise HTTPException(400, "Name, email and phone are required")
+    if role == "Trainer" and not r.specialization.strip():
+        raise HTTPException(400, "Specialization is required for trainers")
+    check_password(r.password)
+    email = r.email.strip()
+    if fetch_one("SELECT 1 AS x FROM Users WHERE lower(email)=lower(%s)", (email,)) or \
+       fetch_one("SELECT 1 AS x FROM Registration_Requests WHERE lower(email)=lower(%s) AND status='Pending'", (email,)):
+        raise HTTPException(400, "This email is already registered or awaiting approval")
+    first, last = split_name(r.name)
+    execute_commit("""INSERT INTO Registration_Requests (role, first_name, last_name, email, phone, specialization, password_hash)
+        VALUES (%s, %s, %s, %s, %s, %s, crypt(%s, gen_salt('bf')))""",
+        (role, first, last, email, r.phone.strip(), r.specialization.strip() or None, r.password))
+    return {"ok": True}
+
+class ApproveIn(BaseModel):
+    planId: Optional[str] = None
+    trainerId: Optional[str] = None
+
+@app.post("/api/requests/{req_id}/approve")
+def approve_request(req_id: int, a: ApproveIn):
+    req = fetch_one("SELECT role FROM Registration_Requests WHERE request_id=%s AND status='Pending'", (req_id,))
+    if not req:
+        raise HTTPException(404, "Request not found")
+    if req["role"] == "Member":
+        if not a.planId or not a.trainerId:
+            raise HTTPException(400, "Pick a plan and a trainer for this member")
+        execute_commit("""
+            WITH r AS (SELECT * FROM Registration_Requests WHERE request_id=%s),
+            u AS (
+              INSERT INTO Users (user_id, first_name, last_name, email, password_hash, phone, role)
+              SELECT 'mbr_' || lpad((SELECT COALESCE(MAX(SUBSTRING(user_id FROM 5)::int), 0) + 1
+                                     FROM Users WHERE role='Member')::text, 2, '0'),
+                     first_name, last_name, email, password_hash, phone, 'Member' FROM r
+              RETURNING user_id),
+            m AS (INSERT INTO Members (user_id, plan_id, assigned_trainer_id)
+                  SELECT user_id, %s, %s FROM u RETURNING user_id)
+            UPDATE Registration_Requests SET status='Approved' WHERE request_id=%s""",
+            (req_id, a.planId, a.trainerId, req_id))
+    else:
+        execute_commit("""
+            WITH r AS (SELECT * FROM Registration_Requests WHERE request_id=%s),
+            u AS (
+              INSERT INTO Users (user_id, first_name, last_name, email, password_hash, phone, role)
+              SELECT 'trn_' || lpad((SELECT COALESCE(MAX(SUBSTRING(user_id FROM 5)::int), 0) + 1
+                                     FROM Users WHERE role='Trainer')::text, 2, '0'),
+                     first_name, last_name, email, password_hash, phone, 'Trainer' FROM r
+              RETURNING user_id),
+            t AS (INSERT INTO Trainer (user_id, specialization)
+                  SELECT u.user_id, r.specialization FROM u, r RETURNING user_id)
+            UPDATE Registration_Requests SET status='Approved' WHERE request_id=%s""",
+            (req_id, req_id))
+    return {"ok": True}
+
+@app.post("/api/requests/{req_id}/reject")
+def reject_request(req_id: int):
+    execute_commit("UPDATE Registration_Requests SET status='Rejected' WHERE request_id=%s AND status='Pending'", (req_id,))
+    return {"ok": True}
 
 # ---------- writes (IDs like mbr_04 / trn_03 / PLN_04 / EQ_04 are generated in SQL) ----------
 class MemberIn(BaseModel):
